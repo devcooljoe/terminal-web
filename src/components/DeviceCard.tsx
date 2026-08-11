@@ -6,9 +6,6 @@ interface Props {
   connectionState: ConnectionState;
   appStatus: AppStatus;
   installMessage: string;
-  onLaunch: () => void;
-  onStop: () => void;
-  onDebug: () => void;
 }
 
 function StatusDot({ active }: { active: boolean }) {
@@ -17,7 +14,7 @@ function StatusDot({ active }: { active: boolean }) {
   );
 }
 
-export function DeviceCard({ deviceInfo, connectionState, appStatus, installMessage, onLaunch, onStop, onDebug }: Props) {
+export function DeviceCard({ deviceInfo, connectionState, appStatus, installMessage }: Props) {
   const connected = connectionState === 'CONNECTED';
 
   if (!connected || !deviceInfo) {
@@ -63,12 +60,6 @@ export function DeviceCard({ deviceInfo, connectionState, appStatus, installMess
           {installMessage}
         </div>
       )}
-
-      <div className="flex gap-2 pt-1">
-        <ActionBtn onClick={onLaunch} disabled={!deviceInfo.currentApp} label="Launch" color="blue" />
-        <ActionBtn onClick={onStop} disabled={appStatus !== 'RUNNING'} label="Stop" color="red" />
-        <ActionBtn onClick={onDebug} disabled={!deviceInfo.currentApp} label="Debug" color="purple" />
-      </div>
     </div>
   );
 }
@@ -96,19 +87,3 @@ function AppStatusBadge({ status }: { status: AppStatus }) {
   );
 }
 
-function ActionBtn({ onClick, disabled, label, color }: { onClick: () => void; disabled: boolean; label: string; color: string }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-600/20 hover:bg-blue-600/40 border-blue-600/40 text-blue-400',
-    red: 'bg-red-600/20 hover:bg-red-600/40 border-red-600/40 text-red-400',
-    purple: 'bg-purple-600/20 hover:bg-purple-600/40 border-purple-600/40 text-purple-400',
-  };
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`px-3 py-1.5 text-xs border rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${colors[color]}`}
-    >
-      {label}
-    </button>
-  );
-}

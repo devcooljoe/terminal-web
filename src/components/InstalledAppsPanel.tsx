@@ -5,6 +5,7 @@ import type { InstalledApp } from '../types/protocol';
 interface Props {
   apps: InstalledApp[];
   connected: boolean;
+  activePackage: string | undefined;
   onLaunch: (pkg: string) => void;
   onStop: (pkg: string) => void;
   onDebug: (pkg: string) => void;
@@ -12,7 +13,7 @@ interface Props {
   onAddApp: (pkg: string) => void;
 }
 
-export function InstalledAppsPanel({ apps, connected, onLaunch, onStop, onDebug, onRefresh, onAddApp }: Props) {
+export function InstalledAppsPanel({ apps, connected, activePackage, onLaunch, onStop, onDebug, onRefresh, onAddApp }: Props) {
   const [adding, setAdding] = useState(false);
   const [pkg, setPkg] = useState('');
 
@@ -86,6 +87,7 @@ export function InstalledAppsPanel({ apps, connected, onLaunch, onStop, onDebug,
               key={app.packageName}
               app={app}
               connected={connected}
+              active={app.packageName === activePackage}
               onLaunch={() => onLaunch(app.packageName)}
               onStop={() => onStop(app.packageName)}
               onDebug={() => onDebug(app.packageName)}
@@ -97,15 +99,17 @@ export function InstalledAppsPanel({ apps, connected, onLaunch, onStop, onDebug,
   );
 }
 
-function AppRow({ app, connected, onLaunch, onStop, onDebug }: {
-  app: InstalledApp; connected: boolean;
+function AppRow({ app, connected, active, onLaunch, onStop, onDebug }: {
+  app: InstalledApp; connected: boolean; active: boolean;
   onLaunch: () => void; onStop: () => void; onDebug: () => void;
 }) {
   return (
     <div className={`rounded-lg p-3 border ${
-      app.installed
-        ? 'bg-gray-800/50 border-gray-700/30'
-        : 'bg-gray-900 border-gray-800/30 opacity-50'
+      !app.installed
+        ? 'bg-gray-900 border-gray-800/30 opacity-50'
+        : active
+        ? 'bg-blue-900/20 border-blue-700/40'
+        : 'bg-gray-800/50 border-gray-700/30'
     }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">

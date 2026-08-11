@@ -69,7 +69,8 @@ export function usePosConnection(): PosConnection {
         setDeviceInfo(msg.deviceInfo as DeviceInfo);
         break;
       case 'DEVICE_STATUS':
-        setAppStatus((msg.appStatus as AppStatus) || 'UNKNOWN');
+      case 'APP_STATUS':
+        setAppStatus((msg.appStatus as AppStatus) || (msg.status as AppStatus) || 'UNKNOWN');
         break;
       case 'TRANSFER_PROGRESS':
         setTransferProgress(msg.progress as TransferProgress);
@@ -94,6 +95,8 @@ export function usePosConnection(): PosConnection {
       case 'INSTALL_SUCCESS':
         setInstallMessage(`✓ Installed: ${msg.packageName}`);
         setAppStatus('STOPPED');
+        setTransferState('IDLE');
+        setTransferProgress(null);
         break;
       case 'INSTALL_ERROR':
         setInstallMessage(`✗ Installation failed: ${msg.reason}`);

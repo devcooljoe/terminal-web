@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePosConnection } from './hooks/usePosConnection';
 import { ConnectionPanel } from './components/ConnectionPanel';
 import { DeviceCard } from './components/DeviceCard';
@@ -10,9 +11,11 @@ import { Cpu } from 'lucide-react';
 export default function App() {
   const pos = usePosConnection();
   const connected = pos.connectionState === 'CONNECTED';
+  const [activePackage, setActivePackage] = useState<string | undefined>();
 
-  // Active debug target: prefer last launched app from installed list
-  const debugTarget = pos.installedApps.find(a => a.installed)?.packageName;
+  const handleLaunch = (pkg: string) => { setActivePackage(pkg); pos.launchApp(pkg); };
+  const handleStop  = (pkg: string) => { setActivePackage(pkg); pos.stopApp(pkg); };
+  const handleDebug = (pkg: string) => { setActivePackage(pkg); pos.startDebug(pkg); };
 
   return (
     <div className="min-h-screen bg-[#0f1117] flex flex-col">
@@ -43,16 +46,14 @@ export default function App() {
             connectionState={pos.connectionState}
             appStatus={pos.appStatus}
             installMessage={pos.installMessage}
-            onLaunch={() => debugTarget && pos.launchApp(debugTarget)}
-            onStop={() => debugTarget && pos.stopApp(debugTarget)}
-            onDebug={() => debugTarget && pos.startDebug(debugTarget)}
           />
           <InstalledAppsPanel
             apps={pos.installedApps}
             connected={connected}
-            onLaunch={pos.launchApp}
-            onStop={pos.stopApp}
-            onDebug={pos.startDebug}
+            activePackage={activePackage}
+            onLaunch={handleLaunch}
+            onStop={handleStop}
+            onDebug={handleDebug}
             onRefresh={pos.refreshApps}
             onAddApp={pos.addApp}
           />
@@ -70,8 +71,8 @@ export default function App() {
           logs={pos.logs}
           debugState={pos.debugState}
           connected={connected}
-          currentPackage={debugTarget}
-          onStartDebug={() => debugTarget && pos.startDebug(debugTarget)}
+          currentPackage={activePackage}
+          onStartDebug={() => activePackage && pos.startDebug(activePackage)}
           onStopDebug={pos.stopDebug}
           onClear={pos.clearLogs}
           onExport={pos.exportLogs}
