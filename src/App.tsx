@@ -4,16 +4,18 @@ import { DeviceCard } from './components/DeviceCard';
 import { ApkPanel } from './components/ApkPanel';
 import { DebugConsole } from './components/DebugConsole';
 import { StatusBar } from './components/StatusBar';
+import { InstalledAppsPanel } from './components/InstalledAppsPanel';
 import { Cpu } from 'lucide-react';
 
 export default function App() {
   const pos = usePosConnection();
   const connected = pos.connectionState === 'CONNECTED';
-  const pkg = pos.deviceInfo?.currentApp;
+
+  // Active debug target: prefer last launched app from installed list
+  const debugTarget = pos.installedApps.find(a => a.installed)?.packageName;
 
   return (
     <div className="min-h-screen bg-[#0f1117] flex flex-col">
-      {/* Top bar */}
       <header className="flex items-center justify-between px-6 py-3 bg-gray-950 border-b border-gray-800">
         <div className="flex items-center gap-2">
           <Cpu size={18} className="text-blue-400" />
@@ -33,18 +35,26 @@ export default function App() {
         deviceName={pos.deviceInfo?.deviceName}
       />
 
-      {/* Main layout */}
       <main className="flex-1 grid grid-cols-[320px_1fr] gap-4 p-4 overflow-hidden">
         {/* Left column */}
-        <div className="flex flex-col gap-4 overflow-y-auto">
+        <div className="flex flex-col gap-4 overflow-y-auto scrollbar-thin">
           <DeviceCard
             deviceInfo={pos.deviceInfo}
             connectionState={pos.connectionState}
             appStatus={pos.appStatus}
             installMessage={pos.installMessage}
-            onLaunch={() => pkg && pos.launchApp(pkg)}
-            onStop={() => pkg && pos.stopApp(pkg)}
-            onDebug={() => pkg && pos.startDebug(pkg)}
+            onLaunch={() => debugTarget && pos.launchApp(debugTarget)}
+            onStop={() => debugTarget && pos.stopApp(debugTarget)}
+            onDebug={() => debugTarget && pos.startDebug(debugTarget)}
+          />
+          <InstalledAppsPanel
+            apps={pos.installedApps}
+            connected={connected}
+            onLaunch={pos.launchApp}
+            onStop={pos.stopApp}
+            onDebug={pos.startDebug}
+            onRefresh={pos.refreshApps}
+            onAddApp={pos.addApp}
           />
           <ApkPanel
             connected={connected}
@@ -60,8 +70,8 @@ export default function App() {
           logs={pos.logs}
           debugState={pos.debugState}
           connected={connected}
-          currentPackage={pkg}
-          onStartDebug={() => pkg && pos.startDebug(pkg)}
+          currentPackage={debugTarget}
+          onStartDebug={() => debugTarget && pos.startDebug(debugTarget)}
           onStopDebug={pos.stopDebug}
           onClear={pos.clearLogs}
           onExport={pos.exportLogs}

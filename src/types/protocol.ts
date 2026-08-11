@@ -10,6 +10,7 @@ export type MessageType =
   | 'GET_APP_STATUS' | 'APP_STATUS'
   | 'DEBUG_START' | 'DEBUG_STARTED' | 'DEBUG_STOP' | 'DEBUG_STOPPED'
   | 'LOG_ENTRY' | 'LOG_BATCH'
+  | 'APP_LIST' | 'GET_APP_LIST' | 'ADD_APP'
   | 'ERROR' | 'PEER_DISCONNECTED'
   | 'SDP_OFFER' | 'SDP_ANSWER' | 'ICE_CANDIDATE'
   | 'DEVICE_REGISTER' | 'BROWSER_PAIR' | 'PAIRING_CODE' | 'RELAY';
@@ -19,6 +20,16 @@ export type AppStatus = 'RUNNING' | 'STOPPED' | 'CRASHED' | 'UNKNOWN';
 export type DebugSessionState = 'IDLE' | 'STARTING' | 'RUNNING' | 'STOPPING' | 'STOPPED' | 'ERROR';
 export type TransferState = 'IDLE' | 'TRANSFERRING' | 'PAUSED' | 'COMPLETE' | 'ERROR' | 'CANCELLED';
 export type ConnectionState = 'DISCONNECTED' | 'CONNECTING' | 'PAIRING' | 'CONNECTED';
+
+export interface InstalledApp {
+  packageName: string;
+  appName?: string;
+  fileName: string;
+  versionName: string;
+  versionCode?: number;
+  installedAt: number;
+  installed: boolean;
+}
 
 export interface DeviceInfo {
   deviceId: string;

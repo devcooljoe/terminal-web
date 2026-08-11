@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ConnectionState, DeviceInfo, Message, ApkMetadata,
-  TransferProgress, TransferState, LogEntry, DebugSessionState, AppStatus,
+  TransferProgress, TransferState, LogEntry, DebugSessionState, AppStatus, InstalledApp,
 } from '../types/protocol';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'ws://localhost:8080';
@@ -20,6 +20,7 @@ export interface PosConnection {
   logs: LogEntry[];
   installMessage: string;
   error: string | null;
+  installedApps: InstalledApp[];
 
   // Actions
   connect: (pairingCode: string) => void;
@@ -32,6 +33,8 @@ export interface PosConnection {
   stopDebug: () => void;
   clearLogs: () => void;
   exportLogs: () => void;
+  refreshApps: () => void;
+  addApp: (packageName: string) => void;
 }
 
 export function usePosConnection(): PosConnection {
@@ -45,6 +48,7 @@ export function usePosConnection(): PosConnection {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [installMessage, setInstallMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -83,6 +87,9 @@ export function usePosConnection(): PosConnection {
         break;
       case 'INSTALL_PROGRESS':
         setInstallMessage(`Installing: ${msg.progress}%`);
+        break;
+      case 'APP_LIST':
+        setInstalledApps((msg.apps as InstalledApp[]) || []);
         break;
       case 'INSTALL_SUCCESS':
         setInstallMessage(`✓ Installed: ${msg.packageName}`);
@@ -375,13 +382,21 @@ export function usePosConnection(): PosConnection {
     URL.revokeObjectURL(url);
   }, [logs]);
 
+  const refreshApps = useCallback(() => {
+    sendDC({ type: 'GET_APP_LIST' });
+  }, [sendDC]);
+
+  const addApp = useCallback((packageName: string) => {
+    sendDC({ type: 'ADD_APP', packageName });
+  }, [sendDC]);
+
   useEffect(() => () => disconnect(), [disconnect]);
 
   return {
     connectionState, signalingState, deviceInfo, appStatus,
     transferState, transferProgress, debugState, logs,
-    installMessage, error,
+    installMessage, error, installedApps,
     connect, disconnect, sendApk, cancelTransfer,
-    launchApp, stopApp, startDebug, stopDebug, clearLogs, exportLogs,
+    launchApp, stopApp, startDebug, stopDebug, clearLogs, exportLogs, refreshApps, addApp,
   };
 }
