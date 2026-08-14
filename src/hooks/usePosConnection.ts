@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ConnectionState, DeviceInfo, Message, ApkMetadata,
   TransferProgress, TransferState, LogEntry, DebugSessionState, AppStatus, InstalledApp,
+  TransportInfo,
 } from '../types/protocol';
 
 const SIGNALING_URL = import.meta.env.VITE_SIGNALING_URL || 'ws://localhost:8080';
-const CHUNK_SIZE = 64 * 1024; // 64 KB chunks
-const BUFFER_HIGH = 4 * 1024 * 1024; // 4 MB — pause sending
+const CHUNK_SIZE = 64 * 1024;
+const BUFFER_HIGH = 4 * 1024 * 1024;
 const HEARTBEAT_INTERVAL = 15_000;
+const TRANSPORT_POLL_INTERVAL = 3_000;
 
 export interface PosConnection {
   connectionState: ConnectionState;
@@ -21,6 +23,7 @@ export interface PosConnection {
   installMessage: string;
   error: string | null;
   installedApps: InstalledApp[];
+  transport: TransportInfo;
 
   // Actions
   connect: (pairingCode: string) => void;
@@ -49,13 +52,16 @@ export function usePosConnection(): PosConnection {
   const [installMessage, setInstallMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
+  const [transport, setTransport] = useState<TransportInfo>({ mode: 'UNKNOWN' });
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const transportPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transferRef = useRef<{ file: File; meta: ApkMetadata; cancelled: boolean; paused: boolean } | null>(null);
   const logIdRef = useRef(0);
+  const deviceInfoRef = useRef<DeviceInfo | null>(null);
 
   const sendDC = useCallback((msg: object) => {
     if (dcRef.current?.readyState === 'open') {
@@ -67,6 +73,7 @@ export function usePosConnection(): PosConnection {
     switch (msg.type) {
       case 'DEVICE_INFO':
         setDeviceInfo(msg.deviceInfo as DeviceInfo);
+        deviceInfoRef.current = msg.deviceInfo as DeviceInfo;
         break;
       case 'DEVICE_STATUS':
       case 'APP_STATUS':
@@ -138,18 +145,59 @@ export function usePosConnection(): PosConnection {
     }
   }, []);
 
+  // Poll WebRTC stats to determine actual transport path
+  const pollTransport = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc) return;
+    try {
+      const stats = await pc.getStats();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reports = new Map<string, any>();
+      stats.forEach((r) => reports.set(r.id, r));
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let activePair: any = null;
+      reports.forEach((r) => {
+        if (r.type === 'candidate-pair' && r.state === 'succeeded') {
+          if (!activePair || (r.bytesSent ?? 0) > (activePair.bytesSent ?? 0)) activePair = r;
+        }
+      });
+      if (!activePair) return;
+
+      const localCand = reports.get(activePair.localCandidateId);
+      const remoteCand = reports.get(activePair.remoteCandidateId);
+      const candidateType: string = localCand?.candidateType ?? 'unknown';
+      const peerIp: string | undefined = remoteCand?.address ?? remoteCand?.ip;
+      const rtt: number | undefined = activePair.currentRoundTripTime;
+      const latencyMs = rtt != null ? Math.round(rtt * 1000) : undefined;
+      const lanIp = deviceInfoRef.current?.lanIp;
+
+      let mode: TransportInfo['mode'];
+      if (candidateType === 'host') mode = 'LOCAL_LAN';
+      else if (candidateType === 'relay') mode = 'RELAY';
+      else mode = 'INTERNET';
+
+      setTransport({ mode, localIp: lanIp, peerIp, candidateType, latencyMs });
+    } catch { /* ignore */ }
+  }, []);
+
   const setupDataChannel = useCallback((dc: RTCDataChannel) => {
     dcRef.current = dc;
     dc.binaryType = 'arraybuffer';
 
     dc.onopen = () => {
       setConnectionState('CONNECTED');
-      sendDC({ type: 'DEVICE_INFO' }); // request device info
+      sendDC({ type: 'DEVICE_INFO' });
+      // Start polling transport stats
+      transportPollRef.current = setInterval(pollTransport, TRANSPORT_POLL_INTERVAL);
+      pollTransport();
     };
 
     dc.onclose = () => {
       setConnectionState('DISCONNECTED');
       setSignalingState('disconnected');
+      setTransport({ mode: 'UNKNOWN' });
+      if (transportPollRef.current) clearInterval(transportPollRef.current);
     };
 
     dc.onmessage = (e) => {
@@ -157,7 +205,7 @@ export function usePosConnection(): PosConnection {
         try { handleDCMessage(JSON.parse(e.data)); } catch { /* ignore */ }
       }
     };
-  }, [sendDC, handleDCMessage]);
+  }, [sendDC, handleDCMessage, pollTransport]);
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
@@ -263,6 +311,7 @@ export function usePosConnection(): PosConnection {
 
   const disconnect = useCallback(() => {
     heartbeatRef.current && clearInterval(heartbeatRef.current);
+    transportPollRef.current && clearInterval(transportPollRef.current);
     dcRef.current?.close();
     pcRef.current?.close();
     wsRef.current?.close();
@@ -271,9 +320,11 @@ export function usePosConnection(): PosConnection {
     wsRef.current = null;
     setConnectionState('DISCONNECTED');
     setDeviceInfo(null);
+    deviceInfoRef.current = null;
     setDebugState('IDLE');
     setTransferState('IDLE');
     setTransferProgress(null);
+    setTransport({ mode: 'UNKNOWN' });
   }, []);
 
   const sendApk = useCallback(async (file: File, meta: ApkMetadata) => {
@@ -398,7 +449,7 @@ export function usePosConnection(): PosConnection {
   return {
     connectionState, signalingState, deviceInfo, appStatus,
     transferState, transferProgress, debugState, logs,
-    installMessage, error, installedApps,
+    installMessage, error, installedApps, transport,
     connect, disconnect, sendApk, cancelTransfer,
     launchApp, stopApp, startDebug, stopDebug, clearLogs, exportLogs, refreshApps, addApp,
   };

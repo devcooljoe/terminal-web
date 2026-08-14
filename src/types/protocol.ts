@@ -31,6 +31,16 @@ export interface InstalledApp {
   installed: boolean;
 }
 
+export type TransportMode = 'LOCAL_LAN' | 'INTERNET' | 'RELAY' | 'UNKNOWN';
+
+export interface TransportInfo {
+  mode: TransportMode;
+  localIp?: string;       // Android LAN IP
+  peerIp?: string;        // browser-side candidate IP
+  candidateType?: string; // host / srflx / relay
+  latencyMs?: number;
+}
+
 export interface DeviceInfo {
   deviceId: string;
   deviceName: string;
@@ -40,6 +50,8 @@ export interface DeviceInfo {
   agentVersion: string;
   isDeviceOwner: boolean;
   canSilentInstall: boolean;
+  lanIp?: string;         // Android LAN IP address
+  wifiSsid?: string;      // Android Wi-Fi SSID
   currentApp?: string;
   currentAppVersion?: string;
 }

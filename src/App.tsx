@@ -32,10 +32,11 @@ export default function App() {
         />
       </header>
 
-      <StatusBar
+        <StatusBar
         connectionState={pos.connectionState}
         signalingState={pos.signalingState}
         deviceName={pos.deviceInfo?.deviceName}
+        transport={pos.transport}
       />
 
       <main className="flex-1 grid grid-cols-[320px_1fr] gap-4 p-4 overflow-hidden">
@@ -46,6 +47,7 @@ export default function App() {
             connectionState={pos.connectionState}
             appStatus={pos.appStatus}
             installMessage={pos.installMessage}
+            transport={pos.transport}
           />
           <InstalledAppsPanel
             apps={pos.installedApps}

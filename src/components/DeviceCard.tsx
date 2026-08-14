@@ -1,11 +1,12 @@
 import { Monitor, CheckCircle, AlertCircle } from 'lucide-react';
-import type { DeviceInfo, ConnectionState, AppStatus } from '../types/protocol';
+import type { DeviceInfo, ConnectionState, AppStatus, TransportInfo } from '../types/protocol';
 
 interface Props {
   deviceInfo: DeviceInfo | null;
   connectionState: ConnectionState;
   appStatus: AppStatus;
   installMessage: string;
+  transport: TransportInfo;
 }
 
 function StatusDot({ active }: { active: boolean }) {
@@ -14,7 +15,7 @@ function StatusDot({ active }: { active: boolean }) {
   );
 }
 
-export function DeviceCard({ deviceInfo, connectionState, appStatus, installMessage }: Props) {
+export function DeviceCard({ deviceInfo, connectionState, appStatus, installMessage, transport }: Props) {
   const connected = connectionState === 'CONNECTED';
 
   if (!connected || !deviceInfo) {
@@ -42,6 +43,9 @@ export function DeviceCard({ deviceInfo, connectionState, appStatus, installMess
         <Row label="Model" value={deviceInfo.model} />
         <Row label="Android" value={deviceInfo.androidVersion} />
         <Row label="Silent Install" value={deviceInfo.canSilentInstall ? '✓ Available' : '✗ Requires confirmation'} />
+        {deviceInfo.wifiSsid && <Row label="Wi-Fi" value={deviceInfo.wifiSsid} />}
+        {deviceInfo.lanIp && <Row label="LAN IP" value={deviceInfo.lanIp} />}
+        {transport.latencyMs != null && <Row label="Latency" value={`${transport.latencyMs} ms`} />}
         {deviceInfo.currentApp && <Row label="Current App" value={deviceInfo.currentApp} />}
         {deviceInfo.currentAppVersion && <Row label="Version" value={deviceInfo.currentAppVersion} />}
       </div>
