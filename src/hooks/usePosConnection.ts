@@ -212,7 +212,21 @@ export function usePosConnection(): PosConnection {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        // TURN relay — fallback for CGNAT / mobile data / different networks
+        {
+          urls: [
+            'turn:openrelay.metered.ca:80',
+            'turn:openrelay.metered.ca:443',
+            'turns:openrelay.metered.ca:443',
+          ],
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
       ],
+      iceTransportPolicy: 'all',
+      iceCandidatePoolSize: 10,
     });
     pcRef.current = pc;
 
@@ -255,6 +269,8 @@ export function usePosConnection(): PosConnection {
 
     ws.onclose = () => {
       setSignalingState('disconnected');
+      // Only set DISCONNECTED if WebRTC hasn't connected yet
+      // Keep state if already CONNECTED — signaling WS is no longer needed
       if (connectionState !== 'CONNECTED') setConnectionState('DISCONNECTED');
     };
 
@@ -291,7 +307,12 @@ export function usePosConnection(): PosConnection {
         case 'ICE_CANDIDATE': {
           const pc = pcRef.current;
           if (pc && msg.candidate) {
-            try { await pc.addIceCandidate(new RTCIceCandidate(msg.candidate as RTCIceCandidateInit)); } catch { /* ignore */ }
+            try {
+              // Buffer candidates if remote description not set yet
+              if (pc.remoteDescription) {
+                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate as RTCIceCandidateInit));
+              }
+            } catch { /* ignore */ }
           }
           break;
         }
