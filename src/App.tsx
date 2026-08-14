@@ -41,7 +41,7 @@ export default function App() {
 
       <main className="flex-1 grid grid-cols-[320px_1fr] gap-4 p-4 overflow-hidden">
         {/* Left column */}
-        <div className="flex flex-col gap-4 overflow-y-auto scrollbar-thin">
+        <div className="flex flex-col gap-4 overflow-hidden">
           <DeviceCard
             deviceInfo={pos.deviceInfo}
             connectionState={pos.connectionState}
