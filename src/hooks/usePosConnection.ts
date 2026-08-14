@@ -214,7 +214,7 @@ export function usePosConnection(): PosConnection {
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
-        // TURN relay — fallback for CGNAT / mobile data / different networks
+        // Multiple TURN providers as fallbacks
         {
           urls: [
             'turn:openrelay.metered.ca:80',
@@ -224,11 +224,22 @@ export function usePosConnection(): PosConnection {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
+        // Cloudflare STUN (very reliable)
+        { urls: 'stun:stun.cloudflare.com:3478' },
       ],
       iceTransportPolicy: 'all',
       iceCandidatePoolSize: 10,
     });
     pcRef.current = pc;
+
+    // 25-second ICE timeout — fail fast instead of hanging forever
+    const iceTimeout = setTimeout(() => {
+      if (pc.iceConnectionState !== 'connected' && pc.iceConnectionState !== 'completed') {
+        setError('Connection timed out. If on different networks, the TURN relay may be unavailable. Try again.');
+        setConnectionState('DISCONNECTED');
+        pc.close();
+      }
+    }, 25_000);
 
     pc.onicecandidate = (e) => {
       if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -237,7 +248,28 @@ export function usePosConnection(): PosConnection {
     };
 
     pc.onconnectionstatechange = () => {
+      console.log('WebRTC connection state:', pc.connectionState);
+      if (pc.connectionState === 'connected') {
+        clearTimeout(iceTimeout);
+      }
       if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        clearTimeout(iceTimeout);
+        setConnectionState('DISCONNECTED');
+        setError('WebRTC connection failed. Check that both devices can reach the internet.');
+      }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log('ICE gathering state:', pc.iceGatheringState);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      const s = pc.iceConnectionState;
+      console.log('ICE connection state:', s);
+      if (s === 'connected' || s === 'completed') clearTimeout(iceTimeout);
+      if (s === 'failed') {
+        clearTimeout(iceTimeout);
+        setError('ICE failed — TURN server unreachable. Try again or check network.');
         setConnectionState('DISCONNECTED');
       }
     };
