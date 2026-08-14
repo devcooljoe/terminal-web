@@ -171,7 +171,7 @@ function LogLine({ entry, onCopy }: { entry: LogEntry; onCopy: (e: LogEntry) => 
       <span className="text-gray-600 shrink-0 w-28">{time}</span>
       <span className={`shrink-0 w-12 font-semibold ${LEVEL_COLORS[entry.level]}`}>{entry.level}</span>
       <span className="text-cyan-600 shrink-0 w-24 truncate">{entry.tag}</span>
-      <span className={`flex-1 ${LEVEL_COLORS[entry.level]}`}>
+      <span className={`flex-1 break-all ${LEVEL_COLORS[entry.level]}`}>
         {entry.message}
         {expanded && entry.stackTrace && (
           <pre className="mt-1 text-red-300/70 whitespace-pre-wrap text-xs">{entry.stackTrace}</pre>
